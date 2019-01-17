@@ -1,0 +1,11 @@
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\bin\Debug\KTR_Measure.exe.config
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\bin\Debug\KTR_Measure.exe
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\bin\Debug\KTR_Measure.pdb
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.csprojAssemblyReference.cache
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.Form1.resources
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.Properties.Resources.resources
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.csproj.GenerateResource.cache
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.csproj.CoreCompileInputs.cache
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.exe
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.pdb
+C:\Users\CAGD-Factory\source\repos\KTR_Measure\KTR_Measure\obj\Debug\KTR_Measure.csproj.ResolveComReference.cache
