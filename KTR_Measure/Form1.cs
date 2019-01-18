@@ -104,8 +104,7 @@ namespace KTR_Measure
                 lblConnectStatus.Text = "已連線至PLC";
                 LogOutput("已連線至PLC");
                 ServoCon.Enabled = true;
-                ThWorking_PLC = new Thread(working_PLC);
-                ThWorking_PLC.Start();
+                
             }
             catch (Exception)
             {
@@ -167,12 +166,12 @@ namespace KTR_Measure
 
             if (IfChart.Checked)
             {
-                chart1.SaveImage(FileStr + "_INPUT_RPM", ChartImageFormat.Jpeg);
-                chart2.SaveImage(FileStr + "_OUTPUT_RPM", ChartImageFormat.Jpeg);
-                chart3.SaveImage(FileStr + "_INPUT_Torq", ChartImageFormat.Jpeg);
-                chart4.SaveImage(FileStr + "_OUTPUT_Torq", ChartImageFormat.Jpeg);
-                chart5.SaveImage(FileStr + "_MOTOR_RPM", ChartImageFormat.Jpeg);
-                chart6.SaveImage(FileStr + "_MOTOR_Torq", ChartImageFormat.Jpeg);
+                chart1.SaveImage(FileStr + "_INPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart2.SaveImage(FileStr + "_OUTPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart3.SaveImage(FileStr + "_INPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+                chart4.SaveImage(FileStr + "_OUTPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+                chart5.SaveImage(FileStr + "_MOTOR_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart6.SaveImage(FileStr + "_MOTOR_Torq.jpeg", ChartImageFormat.Jpeg);
                 LogOutput("圖表輸出完成");
             }
         }
@@ -436,6 +435,7 @@ namespace KTR_Measure
         {
             btnFinish.Enabled = false;
             btnSaveExcel.Enabled = true;
+            btnWork.Enabled = true;
             LogOutput("實驗結束");
             ServoON(false);
         }
@@ -464,6 +464,9 @@ namespace KTR_Measure
                 case "Line" : type = SeriesChartType.Line;
                     break;
                 case "Spline": type = SeriesChartType.Spline;
+                    break;
+                default:
+                    type = SeriesChartType.Line;
                     break;
 
             }
@@ -496,11 +499,15 @@ namespace KTR_Measure
             btnWork.Enabled = false;
             btnFinish.Enabled = true;
             LogOutput("實驗開始");
+            ServoON(true);
+
+            ThWorking_PLC = new Thread(working_PLC);
+            ThWorking_PLC.Start();
 
             SetChartType();
             CleanChart();
 
-            ServoON(true);
+            
 
             double m_Tacc = Double.Parse(txtTacc.Text), m_Tdec = Double.Parse(txtTdec.Text);
             int m_Rpm = Int16.Parse(txtRpm2.Text)*10;
@@ -539,8 +546,8 @@ namespace KTR_Measure
             torque2 = changeVoltage0x16(Int32.Parse(ary[9] + ary[10], System.Globalization.NumberStyles.HexNumber));
             rpm1 = (rpm1*10/8000) * rpmRate1;
             rpm2 = (rpm2*10/8000) * rpmRate2;
-            torque1 = (torque1 * 10 / 8000) * torqueRate_10;
-            torque2 = (torque2 * 10 / 8000) * torqueRate_50;
+            torque1 = (torque1 * 10 / 8192) * torqueRate_10;
+            torque2 = (torque2 * 10 / 8192) * torqueRate_50;
             ktrRpm1.Add(rpm1);
             ktrRpm2.Add(rpm2);
             ktrTorque1.Add(torque1);
@@ -562,7 +569,7 @@ namespace KTR_Measure
                 //扭矩是千分比
                 txtTorque1.Text = ((double)toe1 / 1000 * 7.16).ToString();
             }
-            motorTorque1.Add((double)toe1 / 1000 * 7.16);
+            motorTorque1.Add((double)toe1 / 1000);
             motorRpm1.Add(spd1 / 10);
         }
         public double changeVoltage0x16(double v)
