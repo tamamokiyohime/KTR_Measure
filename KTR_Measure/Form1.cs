@@ -11,6 +11,7 @@ using System.Threading;
 using System.Net;               //載入網路
 using System.Net.Sockets;
 using Excel = Microsoft.Office.Interop.Excel;
+using System.Windows.Forms.DataVisualization.Charting;
 
 using PCI_DMC;
 using PCI_DMC_ERR;
@@ -24,7 +25,8 @@ namespace KTR_Measure
         
         public const int rpmRate1 = 400; //ktr比例
         public const int rpmRate2 = 4;
-        public const int torqueRate = 5;
+        public const int torqueRate_10 = 1;
+        public const int torqueRate_50 = 5;
         public const ushort node1 = 1; //節點    虎尾3.4 中山1.2
 
         Thread ThWorking_PLC;
@@ -39,8 +41,7 @@ namespace KTR_Measure
         ushort[] NodeID = new ushort[32];
         byte[] value = new byte[10];
         ushort gNodeNum;
-        bool gIsServoOn;
-        short spd1 = 0, spd2 = 0, toe1 = 0, toe2 = 0;
+        short spd1 = 0, toe1 = 0;
         bool ServoWorking = false;
         TextBox[] txtIoSts = new TextBox[16];
 
@@ -50,9 +51,7 @@ namespace KTR_Measure
         List<double> ktrRpm1 = new List<double>();
         List<double> ktrRpm2 = new List<double>();
         List<double> motorTorque1 = new List<double>();
-        //List<double> motorTorque2 = new List<double>();
         List<double> motorRpm1 = new List<double>();
-        //List<double> motorRpm2 = new List<double>();
         double[,] rpm_1 = new double[90000, 10];
         double[,] rpm_2 = new double[90000, 10];
         double[] rpm_motor1 = new double[90000];
@@ -83,27 +82,35 @@ namespace KTR_Measure
                 }
         }
 
+        private void LogOutput(string s)
+        {
+            string Output = "";
+            Output += DateTime.Now.ToString("HH:mm:ss>>>");
+            Output += s;
+            Output += "\n";
+            dialog.AppendText(Output);
+        }
 
         private void btnConnectPLC_Click(object sender, EventArgs e)
         {
-            dialog.AppendText("開始連線至PLC\n");
+            LogOutput("開始連線至PLC\n");
             string IP = txtIPToPLC.Text;                //設定變數IP，其字串
             int Port = int.Parse(txtPortToPLC.Text);    //設定變數Port，為整數
             try
             {
-                //IPAddress是IP，如" 127.0.0.1"  ;IPEndPoint是ip和端口對的組合，如"127.0.0.1: 1000 "  
                 IPEndPoint EP = new IPEndPoint(IPAddress.Parse(IP), Port);
-                //new Socket( 通訊協定家族IP4 , 通訊端類型 , 通訊協定TCP)
                 T = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 T.Connect(EP); //建立連線
                 lblConnectStatus.Text = "已連線至PLC";
-                dialog.AppendText("已連線至PLC\n");
+                LogOutput("已連線至PLC");
                 ServoCon.Enabled = true;
+                ThWorking_PLC = new Thread(working_PLC);
+                ThWorking_PLC.Start();
             }
             catch (Exception)
             {
                 lblConnectStatus.Text = "無法連線至PLC,請檢查線路或IP";
-                dialog.AppendText("無法連線至PLC,請檢查線路或IP\n");
+                LogOutput("無法連線至PLC,請檢查線路或IP");
                 return;
             }
         }
@@ -111,6 +118,12 @@ namespace KTR_Measure
         private void Form1_Load(object sender, EventArgs e)
         {
             CheckForIllegalCrossThreadCalls = false;
+            CType.SelectedIndex = 0;
+            LogOutput("Welcome");
+            LogOutput("Notice!!:");
+            LogOutput("比例設定為：(rpm/Troque)");
+            LogOutput("輸入端：(" + rpmRate1.ToString() + "/" + torqueRate_10.ToString() + ")");
+            LogOutput("輸出端：(" + rpmRate2.ToString() + "/" + torqueRate_50.ToString() + ")");
         }
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -123,7 +136,7 @@ namespace KTR_Measure
             //ThWorking_PLC.Abort();
             String FileStr = "D:\\";
             FileStr += DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
-            dialog.AppendText("檔案儲存中.....\n");
+            LogOutput("檔案儲存中.....");
             Excel.Application Excel_app1 = new Excel.Application();
             Excel.Workbook Excel_WB1 = Excel_app1.Workbooks.Add();
             Excel.Worksheet Excel_WS1 = new Excel.Worksheet();
@@ -150,9 +163,18 @@ namespace KTR_Measure
             Excel_WB1 = null;
             Excel_app1.Quit();
             Excel_app1 = null;
-            dialog.AppendText("檔案已儲存至：\n");
-            dialog.AppendText(FileStr);
-            dialog.AppendText(".xlsx\n");
+            LogOutput("檔案已儲存至：" + FileStr + ".xlsx");
+
+            if (IfChart.Checked)
+            {
+                chart1.SaveImage(FileStr + "_INPUT_RPM", ChartImageFormat.Jpeg);
+                chart2.SaveImage(FileStr + "_OUTPUT_RPM", ChartImageFormat.Jpeg);
+                chart3.SaveImage(FileStr + "_INPUT_Torq", ChartImageFormat.Jpeg);
+                chart4.SaveImage(FileStr + "_OUTPUT_Torq", ChartImageFormat.Jpeg);
+                chart5.SaveImage(FileStr + "_MOTOR_RPM", ChartImageFormat.Jpeg);
+                chart6.SaveImage(FileStr + "_MOTOR_Torq", ChartImageFormat.Jpeg);
+                LogOutput("圖表輸出完成");
+            }
         }
 
         private void btnreset1_Click(object sender, EventArgs e)
@@ -171,15 +193,15 @@ namespace KTR_Measure
             excelTime = 0;
         }
 
-        private void chksvon_CheckedChanged(object sender, EventArgs e)
-        {
-           // gIsServoOn = chksvon.Checked;
-            gnodeid = ushort.Parse(cmbNodeID.Text);
-            //btnWork.Enabled = true;
-            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_ipulser_mode(gCardNo, node1, 0, 1);
-            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_opulser_mode(gCardNo, node1, 0, 1);
-            rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, (ushort)(gIsServoOn ? 1 : 0));
-        }
+        //private void chksvon_CheckedChanged(object sender, EventArgs e)
+        //{
+        //   // gIsServoOn = chksvon.Checked;
+        //    gnodeid = ushort.Parse(cmbNodeID.Text);
+        //    //btnWork.Enabled = true;
+        //    rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_ipulser_mode(gCardNo, node1, 0, 1);
+        //    rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_opulser_mode(gCardNo, node1, 0, 1);
+        //    rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, (ushort)(gIsServoOn ? 1 : 0));
+        //}
 
         private void chart4_Click(object sender, EventArgs e)
         {
@@ -188,7 +210,7 @@ namespace KTR_Measure
 
         private void btnstop_Click(object sender, EventArgs e)
         {
-            dialog.AppendText("馬達緊急停止\n");
+            LogOutput("馬達緊急停止");
             rc = CPCI_DMC.CS_DMC_01_emg_stop(gCardNo, node1, 0);
         }
 
@@ -199,7 +221,7 @@ namespace KTR_Measure
 
         public void OpenCard()
         {
-            dialog.AppendText("開啟軸卡中\n");
+            LogOutput("開啟軸卡中");
             
             ushort i, card_no = 0;
             btnstop.Enabled = false;
@@ -218,7 +240,7 @@ namespace KTR_Measure
 
             if (existcard <= 0)
             {
-                dialog.AppendText("未發現軸卡\n");
+                LogOutput("未發現軸卡");
                 //MessageBox.Show("No DMC-NET card can be found!");
             }
             else
@@ -240,14 +262,14 @@ namespace KTR_Measure
                     rc = CPCI_DMC.CS_DMC_01_pci_initial(gCardNoList[i]);
                     if (rc != 0)
                     {
-                        dialog.AppendText("無法啟動軸卡\n");
+                        LogOutput("無法啟動軸卡");
                         MessageBox.Show("Can't boot PCI_DMC Master Card!");
                     }
 
                     rc = CPCI_DMC.CS_DMC_01_initial_bus(gCardNoList[i]);
                     if (rc != 0)
                     {
-                        dialog.AppendText("軸卡初始化失敗\n");
+                        LogOutput("軸卡初始化失敗");
                         MessageBox.Show("Initial Failed!");
                     }
                     else
@@ -255,7 +277,7 @@ namespace KTR_Measure
                         rc = CPCI_DMC.CS_DMC_01_start_ring(gCardNo, 0);                      //Start communication                      
                         rc = CPCI_DMC.CS_DMC_01_get_device_table(gCardNo, ref DeviceInfo);   //Get Slave Node ID 
                         rc = CPCI_DMC.CS_DMC_01_get_node_table(gCardNo, ref SlaveTable[0]);
-                        dialog.AppendText("成功與軸卡連線\n");
+                        LogOutput("成功與軸卡連線");
                     }
                 }
             }
@@ -263,22 +285,31 @@ namespace KTR_Measure
 
         public void ServoRST()
         {
-            dialog.AppendText("伺服馬達歸零\n");
+            LogOutput("伺服馬達歸零");
             gnodeid = ushort.Parse(cmbNodeID.Text);
             CPCI_DMC.CS_DMC_01_set_position(gCardNo, node1, 0, 0);
             CPCI_DMC.CS_DMC_01_set_command(gCardNo, node1, 0, 0);
+            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_ipulser_mode(gCardNo, node1, 0, 1);
+            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_opulser_mode(gCardNo, node1, 0, 1);
             btnstop.Enabled = true;
             btnNmove.Enabled = true;
             btnPmove.Enabled = true;
         }
 
-        public void ServoON()
+        public void ServoON(bool IsOn)
         {
-            dialog.AppendText("伺服馬達以啟動\n");
-            gnodeid = ushort.Parse(cmbNodeID.Text);
-            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_ipulser_mode(gCardNo, node1, 0, 1);
-            rc = CPCI_DMC.CS_DMC_01_set_rm_04pi_opulser_mode(gCardNo, node1, 0, 1);
-            rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, 1);
+            switch (IsOn)
+            {
+                case true:
+                    rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, 1);
+                    LogOutput("伺服馬達已啟動");
+                    break;
+                case false:
+                    rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, 0);
+                    LogOutput("伺服馬達已關閉");
+                    break;
+            }
+            ServoWorking = IsOn;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -289,20 +320,16 @@ namespace KTR_Measure
                 OpenCard();
                 FindSlave();
                 ServoRST();
-                ServoON();
                 btnWork.Enabled = true;
             }
             catch (Exception)
             {
 
             }
-            
-            
-
         }
 
         public void FindSlave(){
-            dialog.AppendText("開始搜尋控制器..\n");
+            LogOutput("開始搜尋控制器...");
             ushort i, lMask = 0x1, p = 0;
             uint DeviceType = 0, IdentityObject = 0;
             btnstop.Enabled = false;
@@ -317,7 +344,7 @@ namespace KTR_Measure
             if (SlaveTable[0] == 0)
             {
                 MessageBox.Show("CardNo: " + gCardNo.ToString() + " No slave found!");
-                dialog.AppendText("未發現控制器\n");
+                LogOutput("未發現控制器");
             }
             else
             {
@@ -365,7 +392,7 @@ namespace KTR_Measure
                 {
                     txtSlaveNum.Text = gNodeNum.ToString();
                     cmbNodeID.SelectedIndex = 0;
-                    dialog.AppendText("控制卡連線完成\n");
+                    LogOutput("控制卡連線完成");
                 }
             }
         }
@@ -409,9 +436,8 @@ namespace KTR_Measure
         {
             btnFinish.Enabled = false;
             btnSaveExcel.Enabled = true;
-            dialog.AppendText("實驗結束 馬達停止\n");
-            rc = CPCI_DMC.CS_DMC_01_set_velocity_stop(gCardNo, node1, 0, 1);
-            ServoWorking = false;
+            LogOutput("實驗結束");
+            ServoON(false);
         }
 
         private void btnexit_Click(object sender, EventArgs e)
@@ -420,21 +446,37 @@ namespace KTR_Measure
             btnWork.Enabled = false;
             btnFinish.Enabled = false;
             btnSaveExcel.Enabled = false;
-            dialog.AppendText("關閉伺服馬達....\n");
+            LogOutput("關閉伺服馬達....");
             rc = CPCI_DMC.CS_DMC_01_ipo_set_svon(gCardNo, node1, 0, 0);
             rc = CPCI_DMC.CS_DMC_01_reset_card(gCardNo);
             CPCI_DMC.CS_DMC_01_close();
-            dialog.AppendText("Bye bye~~~\n");
+            LogOutput("Bye bye~~~");
             Thread.Sleep(1500);
             Environment.Exit(Environment.ExitCode);
 
         }
-
-        private void btnWork_Click(object sender, EventArgs e)
+        private void SetChartType()
         {
-            btnWork.Enabled = false;
-            btnFinish.Enabled = true;
-            dialog.AppendText("實驗開始\n");
+            SeriesChartType type = new SeriesChartType();
+
+            switch (CType.ToString())
+            {
+                case "Line" : type = SeriesChartType.Line;
+                    break;
+                case "Spline": type = SeriesChartType.Spline;
+                    break;
+
+            }
+            chart1.Series[0].ChartType = type;
+            chart2.Series[0].ChartType = type;
+            chart3.Series[0].ChartType = type;
+            chart4.Series[0].ChartType = type;
+            chart5.Series[0].ChartType = type;
+            chart6.Series[0].ChartType = type;
+        }
+
+        private void CleanChart()
+        {
             chart1.Series[0].Points.Clear();
             chart2.Series[0].Points.Clear();
             chart3.Series[0].Points.Clear();
@@ -447,8 +489,18 @@ namespace KTR_Measure
             ktrTorque2.Clear();
             motorRpm1.Clear();
             motorTorque1.Clear();
+        }
 
-            ServoWorking = true;
+        private void btnWork_Click(object sender, EventArgs e)
+        {
+            btnWork.Enabled = false;
+            btnFinish.Enabled = true;
+            LogOutput("實驗開始");
+
+            SetChartType();
+            CleanChart();
+
+            ServoON(true);
 
             double m_Tacc = Double.Parse(txtTacc.Text), m_Tdec = Double.Parse(txtTdec.Text);
             int m_Rpm = Int16.Parse(txtRpm2.Text)*10;
@@ -459,8 +511,7 @@ namespace KTR_Measure
             rc = CPCI_DMC.CS_DMC_01_set_velocity(gCardNo, node1, 0, m_Rpm);
 
 
-            ThWorking_PLC = new Thread(working_PLC);
-            ThWorking_PLC.Start();
+            
         }
 
         private void Listen()
@@ -488,8 +539,8 @@ namespace KTR_Measure
             torque2 = changeVoltage0x16(Int32.Parse(ary[9] + ary[10], System.Globalization.NumberStyles.HexNumber));
             rpm1 = (rpm1*10/8000) * rpmRate1;
             rpm2 = (rpm2*10/8000) * rpmRate2;
-            torque1 = (torque1 * 10 / 8000) * torqueRate;
-            torque2 = (torque2 * 10 / 8000) * torqueRate;
+            torque1 = (torque1 * 10 / 8000) * torqueRate_10;
+            torque2 = (torque2 * 10 / 8000) * torqueRate_50;
             ktrRpm1.Add(rpm1);
             ktrRpm2.Add(rpm2);
             ktrTorque1.Add(torque1);
