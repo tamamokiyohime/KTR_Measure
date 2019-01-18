@@ -26,7 +26,7 @@ namespace KTR_Measure
         public const int rpmRate1 = 400; //ktr比例
         public const int rpmRate2 = 4;
         public const int torqueRate_10 = 1;
-        public const int torqueRate_50 = 5;
+        public const int torqueRate_50 = -5;
         public const ushort node1 = 1; //節點    虎尾3.4 中山1.2
 
         Thread ThWorking_PLC;
