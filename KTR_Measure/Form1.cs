@@ -28,8 +28,9 @@ namespace KTR_Measure
         public const int torqueRate_10 = 1;
         public const int torqueRate_50 = -5;
         public const ushort node1 = 1; //節點    虎尾3.4 中山1.2
+        public const double ServoMaxTorq = 1.27;
 
-        Thread ThWorking_PLC;
+        Thread ThWorking_PLC, ThFileSave;
         Socket T;
         
         int excelTime = 0;  //excel陣列數目
@@ -52,6 +53,12 @@ namespace KTR_Measure
         List<double> ktrRpm2 = new List<double>();
         List<double> motorTorque1 = new List<double>();
         List<double> motorRpm1 = new List<double>();
+        List<double> SaveRpm1 = new List<double>();
+        List<double>SaveRpm2 = new List<double>();
+        List<double> SaveRpmM = new List<double>();
+        List<double> SaveTorq1 = new List<double>();
+        List<double> SaveTorq2 = new List<double>();
+        List<double> SaveTorqM = new List<double>();
         double[,] rpm_1 = new double[90000, 10];
         double[,] rpm_2 = new double[90000, 10];
         double[] rpm_motor1 = new double[90000];
@@ -60,6 +67,7 @@ namespace KTR_Measure
         double[,] torque_2 = new double[90000, 10];
         double[] torque_motor1 = new double[90000];
         double[] torque_motor2 = new double[90000];
+        String FileStr = "";
 
         public Form1()
         {
@@ -118,8 +126,10 @@ namespace KTR_Measure
         {
             CheckForIllegalCrossThreadCalls = false;
             CType.SelectedIndex = 0;
+            Disk.SelectedIndex = 0;
             LogOutput("Welcome");
             LogOutput("Notice!!:");
+            LogOutput("馬達最大扭力設定值：" + ServoMaxTorq.ToString());
             LogOutput("比例設定為：(rpm/Troque)");
             LogOutput("輸入端：(" + rpmRate1.ToString() + "/" + torqueRate_10.ToString() + ")");
             LogOutput("輸出端：(" + rpmRate2.ToString() + "/" + torqueRate_50.ToString() + ")");
@@ -130,16 +140,34 @@ namespace KTR_Measure
             Environment.Exit(Environment.ExitCode);
         }
 
-        private void btnSaveExcel_Click(object sender, EventArgs e)
+        public void FileSave()
         {
-            //ThWorking_PLC.Abort();
-            String FileStr = "D:\\";
-            FileStr += DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
-            LogOutput("檔案儲存中.....");
+            //btnWork.Enabled = false;
+            //btnSaveExcel.Enabled = false;
+            //LogOutput("檔案儲存中.....");
+            //String FileStr = "";
+            //FileStr += Disk.SelectedItem.ToString();
+            //FileStr += DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+            //LogOutput(FileStr);
+
+            //if (IfChart.Checked)
+            //{
+            //    System.IO.Directory.CreateDirectory(FileStr + "_Chart");
+            //    chart1.SaveImage(FileStr + "_Chart\\INPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+            //    chart2.SaveImage(FileStr + "_Chart\\OUTPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+            //    chart3.SaveImage(FileStr + "_Chart\\INPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+            //    chart4.SaveImage(FileStr + "_Chart\\OUTPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+            //    chart5.SaveImage(FileStr + "_Chart\\MOTOR_RPM.jpeg", ChartImageFormat.Jpeg);
+            //    chart6.SaveImage(FileStr + "_Chart\\MOTOR_Torq.jpeg", ChartImageFormat.Jpeg);
+            //    LogOutput("圖表輸出完成");
+            //}
+
+            
+
             Excel.Application Excel_app1 = new Excel.Application();
             Excel.Workbook Excel_WB1 = Excel_app1.Workbooks.Add();
             Excel.Worksheet Excel_WS1 = new Excel.Worksheet();
-           
+
             Excel_app1.Cells[1, 1] = "INPUT端轉速";
             Excel_app1.Cells[1, 2] = "INPUT端扭矩";
             Excel_app1.Cells[1, 3] = "OUTPUT端轉速";
@@ -147,33 +175,65 @@ namespace KTR_Measure
             Excel_app1.Cells[1, 5] = "Motor轉速";
             Excel_app1.Cells[1, 6] = "Motor扭矩";
 
-            for (int i = 0; i < ktrRpm1.Count; i++)
+            for (int i = 0; i < SaveRpm1.Count; i++)
             {
-                Excel_app1.Cells[i + 2, 1] = ktrRpm1[i];
-                Excel_app1.Cells[i + 2, 2] = ktrTorque1[i];
-                Excel_app1.Cells[i + 2, 3] = ktrRpm2[i];
-                Excel_app1.Cells[i + 2, 4] = ktrTorque2[i];
-                Excel_app1.Cells[i + 2, 5] = motorRpm1[i];
-                Excel_app1.Cells[i + 2, 6] = motorTorque1[i];
+                Excel_app1.Cells[i + 2, 1] = SaveRpm1[i];
+                Excel_app1.Cells[i + 2, 2] = SaveTorq1[i];
+                Excel_app1.Cells[i + 2, 3] = SaveRpm2[i];
+                Excel_app1.Cells[i + 2, 4] = SaveTorq2[i];
+                Excel_app1.Cells[i + 2, 5] = SaveRpmM[i];
+                Excel_app1.Cells[i + 2, 6] = SaveTorqM[i];
 
             }
+            
             Excel_WB1.SaveAs(FileStr);
             Excel_WB1.Close();
             Excel_WB1 = null;
             Excel_app1.Quit();
             Excel_app1 = null;
-            LogOutput("檔案已儲存至：" + FileStr + ".xlsx");
+            LogOutput("檔案已儲存為：" + FileStr + ".xlsx");
+            btnWork.Enabled = true;
+            if (btnFinish.Enabled == false)
+            {
+                btnSaveExcel.Enabled = true;
+            }
+            
+            
+        }
+
+        private void btnSaveExcel_Click(object sender, EventArgs e)
+        {
+            btnWork.Enabled = false;
+            btnSaveExcel.Enabled = false;
+            LogOutput("檔案儲存中.....");
+            //String FileStr = "";
+            FileStr = "";
+            FileStr += Disk.SelectedItem.ToString();
+            FileStr += DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+            LogOutput(FileStr);
 
             if (IfChart.Checked)
             {
-                chart1.SaveImage(FileStr + "_INPUT_RPM.jpeg", ChartImageFormat.Jpeg);
-                chart2.SaveImage(FileStr + "_OUTPUT_RPM.jpeg", ChartImageFormat.Jpeg);
-                chart3.SaveImage(FileStr + "_INPUT_Torq.jpeg", ChartImageFormat.Jpeg);
-                chart4.SaveImage(FileStr + "_OUTPUT_Torq.jpeg", ChartImageFormat.Jpeg);
-                chart5.SaveImage(FileStr + "_MOTOR_RPM.jpeg", ChartImageFormat.Jpeg);
-                chart6.SaveImage(FileStr + "_MOTOR_Torq.jpeg", ChartImageFormat.Jpeg);
+                System.IO.Directory.CreateDirectory(FileStr + "_Chart");
+                LogOutput("圖表資料夾建立完成");
+                chart1.SaveImage(FileStr + "_Chart\\INPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart2.SaveImage(FileStr + "_Chart\\OUTPUT_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart3.SaveImage(FileStr + "_Chart\\INPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+                chart4.SaveImage(FileStr + "_Chart\\OUTPUT_Torq.jpeg", ChartImageFormat.Jpeg);
+                chart5.SaveImage(FileStr + "_Chart\\MOTOR_RPM.jpeg", ChartImageFormat.Jpeg);
+                chart6.SaveImage(FileStr + "_Chart\\MOTOR_Torq.jpeg", ChartImageFormat.Jpeg);
                 LogOutput("圖表輸出完成");
             }
+
+            SaveRpm1 = ktrRpm1;
+            SaveRpm2 = ktrRpm2;
+            SaveRpmM = motorRpm1;
+            SaveTorq1 = ktrTorque1;
+            SaveTorq2 = ktrTorque2;
+            SaveTorqM = motorTorque1;
+
+            ThFileSave = new Thread(FileSave);
+            ThFileSave.Start();
         }
 
         private void btnreset1_Click(object sender, EventArgs e)
@@ -313,7 +373,6 @@ namespace KTR_Measure
 
         private void button1_Click(object sender, EventArgs e)
         {
-            bool check = false;
             try
             {
                 OpenCard();
@@ -433,6 +492,7 @@ namespace KTR_Measure
 
         private void btnFinish_Click(object sender, EventArgs e)
         {
+            timer1.Enabled = false;
             btnFinish.Enabled = false;
             btnSaveExcel.Enabled = true;
             btnWork.Enabled = true;
@@ -494,10 +554,57 @@ namespace KTR_Measure
             motorTorque1.Clear();
         }
 
+        private void label15_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void txtSlaveNum_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void groupBox6_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void groupBox3_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+
+        }
+
+        private void groupBox2_Enter(object sender, EventArgs e)
+        {
+
+        }
+
         private void btnWork_Click(object sender, EventArgs e)
         {
             btnWork.Enabled = false;
             btnFinish.Enabled = true;
+
+            if (IfTime.Checked)
+            {
+                try
+                {
+                    timer1.Interval = int.Parse(TimeValue.Text)*1000;
+                    timer1.Tick += new EventHandler(btnFinish_Click);
+                    timer1.Enabled = true;
+                    LogOutput("定時功能啟動");
+                }
+                catch (Exception)
+                {
+                    timer1.Enabled = false;
+                    LogOutput("時間設定錯誤");
+                }
+            }
+
             LogOutput("實驗開始");
             ServoON(true);
 
@@ -544,8 +651,8 @@ namespace KTR_Measure
             rpm2 = changeVoltage0x16(Int32.Parse(ary[5] + ary[6], System.Globalization.NumberStyles.HexNumber));
             torque1 = changeVoltage0x16(Int32.Parse(ary[7] + ary[8], System.Globalization.NumberStyles.HexNumber));
             torque2 = changeVoltage0x16(Int32.Parse(ary[9] + ary[10], System.Globalization.NumberStyles.HexNumber));
-            rpm1 = (rpm1*10/8000) * rpmRate1;
-            rpm2 = (rpm2*10/8000) * rpmRate2;
+            rpm1 = (rpm1*10/8192) * rpmRate1;
+            rpm2 = (rpm2*10/8192) * rpmRate2;
             torque1 = (torque1 * 10 / 8192) * torqueRate_10;
             torque2 = (torque2 * 10 / 8192) * torqueRate_50;
             ktrRpm1.Add(rpm1);
@@ -558,18 +665,18 @@ namespace KTR_Measure
         private void MotorListen()
         {
             rc = CPCI_DMC.CS_DMC_01_get_rpm(gCardNo, node1, 0, ref spd1);
-            if (rc == 0)
-            {
+            //if (rc == 0)
+            //{
                 txtspeed1.Text = spd1.ToString();
-            }
+            //}
             //Torque
             rc = CPCI_DMC.CS_DMC_01_get_torque(gCardNo, node1, 0, ref toe1);
-            if (rc == 0)
-            {
-                //扭矩是千分比
-                txtTorque1.Text = ((double)toe1 / 1000 * 7.16).ToString();
-            }
-            motorTorque1.Add((double)toe1 / 1000);
+            //if (rc == 0)
+            //{
+            //    //扭矩是千分比
+                txtTorque1.Text = ((double)toe1 / 1000 * ServoMaxTorq).ToString();
+            //}
+            motorTorque1.Add((double)toe1 / 1000 * ServoMaxTorq);
             motorRpm1.Add(spd1 / 10);
         }
         public double changeVoltage0x16(double v)
