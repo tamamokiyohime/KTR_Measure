@@ -46,6 +46,7 @@
             System.Windows.Forms.DataVisualization.Charting.Title title5 = new System.Windows.Forms.DataVisualization.Charting.Title();
             System.Windows.Forms.DataVisualization.Charting.ChartArea chartArea6 = new System.Windows.Forms.DataVisualization.Charting.ChartArea();
             System.Windows.Forms.DataVisualization.Charting.Series series6 = new System.Windows.Forms.DataVisualization.Charting.Series();
+            System.Windows.Forms.DataVisualization.Charting.Series series7 = new System.Windows.Forms.DataVisualization.Charting.Series();
             System.Windows.Forms.DataVisualization.Charting.Title title6 = new System.Windows.Forms.DataVisualization.Charting.Title();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.txtIPToPLC = new System.Windows.Forms.TextBox();
@@ -515,7 +516,7 @@
             // 
             this.btnstop.BackColor = System.Drawing.Color.Red;
             this.btnstop.Enabled = false;
-            this.btnstop.Location = new System.Drawing.Point(751, 20);
+            this.btnstop.Location = new System.Drawing.Point(760, 21);
             this.btnstop.Name = "btnstop";
             this.btnstop.Size = new System.Drawing.Size(119, 93);
             this.btnstop.TabIndex = 77;
@@ -664,6 +665,7 @@
             this.txtTorque1.Size = new System.Drawing.Size(84, 22);
             this.txtTorque1.TabIndex = 25;
             this.txtTorque1.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+            this.txtTorque1.TextChanged += new System.EventHandler(this.txtTorque1_TextChanged);
             // 
             // txtspeed1
             // 
@@ -699,7 +701,7 @@
             // 
             // dialog
             // 
-            this.dialog.Location = new System.Drawing.Point(876, 12);
+            this.dialog.Location = new System.Drawing.Point(885, 12);
             this.dialog.Multiline = true;
             this.dialog.Name = "dialog";
             this.dialog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -746,7 +748,11 @@
             series6.ChartArea = "ChartArea1";
             series6.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
             series6.Name = "Series1";
+            series7.ChartArea = "ChartArea1";
+            series7.ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+            series7.Name = "Series2";
             this.chart6.Series.Add(series6);
+            this.chart6.Series.Add(series7);
             this.chart6.Size = new System.Drawing.Size(600, 400);
             this.chart6.TabIndex = 73;
             this.chart6.Text = "chart6";
@@ -759,9 +765,9 @@
             this.IfChart.AutoSize = true;
             this.IfChart.Location = new System.Drawing.Point(218, 15);
             this.IfChart.Name = "IfChart";
-            this.IfChart.Size = new System.Drawing.Size(96, 16);
+            this.IfChart.Size = new System.Drawing.Size(72, 16);
             this.IfChart.TabIndex = 96;
-            this.IfChart.Text = "同步匯出圖表";
+            this.IfChart.Text = "匯出圖表";
             this.IfChart.UseVisualStyleBackColor = true;
             // 
             // groupBox8
@@ -778,7 +784,7 @@
             this.groupBox8.Controls.Add(this.btnexit);
             this.groupBox8.Location = new System.Drawing.Point(411, 12);
             this.groupBox8.Name = "groupBox8";
-            this.groupBox8.Size = new System.Drawing.Size(334, 100);
+            this.groupBox8.Size = new System.Drawing.Size(343, 100);
             this.groupBox8.TabIndex = 97;
             this.groupBox8.TabStop = false;
             this.groupBox8.Text = "實驗操作";
@@ -808,7 +814,7 @@
             this.Disk.Items.AddRange(new object[] {
             "D:\\",
             "C:\\"});
-            this.Disk.Location = new System.Drawing.Point(272, 33);
+            this.Disk.Location = new System.Drawing.Point(218, 34);
             this.Disk.Name = "Disk";
             this.Disk.Size = new System.Drawing.Size(50, 20);
             this.Disk.TabIndex = 98;
@@ -820,7 +826,7 @@
             this.CType.Items.AddRange(new object[] {
             "Line",
             "Spline"});
-            this.CType.Location = new System.Drawing.Point(218, 33);
+            this.CType.Location = new System.Drawing.Point(284, 11);
             this.CType.Name = "CType";
             this.CType.Size = new System.Drawing.Size(50, 20);
             this.CType.TabIndex = 97;
@@ -834,7 +840,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoScroll = true;
-            this.ClientSize = new System.Drawing.Size(1284, 981);
+            this.ClientSize = new System.Drawing.Size(1904, 981);
             this.Controls.Add(this.groupBox8);
             this.Controls.Add(this.groupBox6);
             this.Controls.Add(this.dialog);

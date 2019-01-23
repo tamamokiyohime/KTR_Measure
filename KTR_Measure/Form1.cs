@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 using System.Windows.Forms;
 using System.Threading;
 using System.Net;               //載入網路
@@ -23,12 +24,13 @@ namespace KTR_Measure
     public partial class Form1 : Form
     {
         
-        public const int rpmRate1 = 400; //ktr比例
-        public const int rpmRate2 = 4;
-        public const int torqueRate_10 = 1;
-        public const int torqueRate_50 = -5;
+        public int rpmRate1 = 400; //ktr比例
+        public int rpmRate2 = 4;
+        public int torqueRate_10 = 1;
+        public int torqueRate_50 = -5;
         public const ushort node1 = 1; //節點    虎尾3.4 中山1.2
-        public const double ServoMaxTorq = 1.27;
+        public double ServoMaxTorq = 1.27;
+        public int ServoMaxSpeed = 3000;
 
         Thread ThWorking_PLC, ThFileSave;
         Socket T;
@@ -127,12 +129,26 @@ namespace KTR_Measure
             CheckForIllegalCrossThreadCalls = false;
             CType.SelectedIndex = 0;
             Disk.SelectedIndex = 0;
+            
+
+            //string[] lines = { "3000", "1.27","400","4","1","-5"};
+            //File.WriteAllLines("Servo.conf", lines, Encoding.ASCII);
+            string[] lines = File.ReadAllLines("Servo.conf", Encoding.ASCII);
+            ServoMaxSpeed = int.Parse(lines[0]);
+            ServoMaxTorq = double.Parse(lines[1]);
+            rpmRate1 = int.Parse(lines[2]);
+            rpmRate2 = int.Parse(lines[3]);
+            torqueRate_10 = int.Parse(lines[4]);
+            torqueRate_50 = int.Parse(lines[5]);
+
             LogOutput("Welcome");
             LogOutput("Notice!!:");
-            LogOutput("馬達最大扭力設定值：" + ServoMaxTorq.ToString());
+            LogOutput("馬達最大扭力：" + ServoMaxTorq.ToString());
+            LogOutput("馬達最大轉速：" + ServoMaxSpeed.ToString());
             LogOutput("比例設定為：(rpm/Troque)");
             LogOutput("輸入端：(" + rpmRate1.ToString() + "/" + torqueRate_10.ToString() + ")");
             LogOutput("輸出端：(" + rpmRate2.ToString() + "/" + torqueRate_50.ToString() + ")");
+
         }
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -231,6 +247,54 @@ namespace KTR_Measure
             SaveTorq1 = ktrTorque1;
             SaveTorq2 = ktrTorque2;
             SaveTorqM = motorTorque1;
+
+            DataTable output = new DataTable();
+            output.Columns.Add("INPUT_RPM", typeof(Double));
+            output.Columns.Add("INPUT_Torq", typeof(Double));
+            output.Columns.Add("OUTPUT_RPM", typeof(Double));
+            output.Columns.Add("OUTPUT_Torq", typeof(Double));
+            output.Columns.Add("MOTOR_RPM", typeof(Double));
+            output.Columns.Add("MOTOR_Torq", typeof(Double));
+            foreach(int row in SaveRpm1)
+            {
+                DataRow dr = output.NewRow();
+                dr["INPUT_RPM"] = SaveRpm1[row];
+                dr["INPUT_Torq"] = SaveTorq1[row];
+                dr["OUTPTU_RPM"] = SaveRpm2[row];
+                dr["OUTPUT_Torq"] = SaveTorq2[row];
+                dr["MOTOR_RPM"] = SaveRpmM[row];
+                dr["MOTOR_Torq"] = SaveTorqM[row];
+                output.Rows.Add(dr);
+            }
+
+
+            string data = "";
+            string FilePath = "D:\\testoutput.csv";
+            StreamWriter wr = new StreamWriter(FilePath, false, Encoding.Default);
+            foreach (DataColumn column in output.Columns)
+            {
+                data += column.ColumnName + ",";
+            }
+            data += "\n";
+            wr.Write(data);
+            data = "";
+
+            foreach (DataRow row in output.Rows)
+            {
+                foreach (DataColumn column in output.Columns)
+                {
+                    data += row[column].ToString().Trim() + ",";
+                }
+                data += "\n";
+                wr.Write(data);
+                data = "";
+            }
+            data += "\n";
+
+            wr.Dispose();
+            wr.Close();
+
+
 
             ThFileSave = new Thread(FileSave);
             ThFileSave.Start();
@@ -475,6 +539,7 @@ namespace KTR_Measure
                 chart4.Series[0].Points.AddXY(ktrTorque2.Count, ktrTorque2[ktrTorque2.Count - 1]);
                 chart5.Series[0].Points.AddXY(motorRpm1.Count, motorRpm1[motorRpm1.Count - 1]);
                 chart6.Series[0].Points.AddXY(motorTorque1.Count, motorTorque1[motorTorque1.Count - 1]);
+                chart6.Series[0].Points.AddXY(motorTorque1.Count, ServoMaxTorq);
             }
         }
 
@@ -546,6 +611,7 @@ namespace KTR_Measure
             chart4.Series[0].Points.Clear();
             chart5.Series[0].Points.Clear();
             chart6.Series[0].Points.Clear();
+            chart6.Series[1].Points.Clear();
             ktrRpm1.Clear();
             ktrRpm2.Clear();
             ktrTorque1.Clear();
@@ -579,6 +645,11 @@ namespace KTR_Measure
 
         }
 
+        private void txtTorque1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
         private void groupBox2_Enter(object sender, EventArgs e)
         {
 
@@ -588,6 +659,7 @@ namespace KTR_Measure
         {
             btnWork.Enabled = false;
             btnFinish.Enabled = true;
+            bool check_para = true;
 
             if (IfTime.Checked)
             {
@@ -604,15 +676,26 @@ namespace KTR_Measure
                     LogOutput("時間設定錯誤");
                 }
             }
+            if (int.Parse(txtRpm2.ToString()) > ServoMaxSpeed)
+            {
+                check_para = false;
+            }
 
-            LogOutput("實驗開始");
-            ServoON(true);
 
-            ThWorking_PLC = new Thread(working_PLC);
-            ThWorking_PLC.Start();
-
-            SetChartType();
-            CleanChart();
+            if (check_para)
+            {
+                LogOutput("實驗開始");
+                ServoON(true);
+                SetChartType();
+                CleanChart();
+                ThWorking_PLC = new Thread(working_PLC);
+                ThWorking_PLC.Start();
+            }
+            else
+            {
+                LogOutput("設定有誤");
+            }
+            
 
             
 
@@ -675,6 +758,14 @@ namespace KTR_Measure
             //{
             //    //扭矩是千分比
                 txtTorque1.Text = ((double)toe1 / 1000 * ServoMaxTorq).ToString();
+            if(toe1 > 1000)
+            {
+                txtTorque1.BackColor = Color.Red;
+            }
+            else
+            {
+                txtTorque1.BackColor = Color.White;
+            }
             //}
             motorTorque1.Add((double)toe1 / 1000 * ServoMaxTorq);
             motorRpm1.Add(spd1 / 10);
