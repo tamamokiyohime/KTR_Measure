@@ -32,7 +32,7 @@ namespace KTR_Measure
         public double ServoMaxTorq = 1.27;
         public int ServoMaxSpeed = 3000;
 
-        Thread ThWorking_PLC, ThFileSave;
+        Thread ThWorking_PLC, ThFileSave, ThUpdateChart;
         Socket T;
         
         int excelTime = 0;  //excel陣列數目
@@ -226,7 +226,7 @@ namespace KTR_Measure
             FileStr = "";
             FileStr += Disk.SelectedItem.ToString();
             FileStr += DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
-            LogOutput(FileStr);
+            
 
             if (IfChart.Checked)
             {
@@ -238,8 +238,14 @@ namespace KTR_Measure
                 chart4.SaveImage(FileStr + "_Chart\\OUTPUT_Torq.jpeg", ChartImageFormat.Jpeg);
                 chart5.SaveImage(FileStr + "_Chart\\MOTOR_RPM.jpeg", ChartImageFormat.Jpeg);
                 chart6.SaveImage(FileStr + "_Chart\\MOTOR_Torq.jpeg", ChartImageFormat.Jpeg);
-                LogOutput("圖表輸出完成");
+                LogOutput("圖表輸出至："+ FileStr + "_Chart");
             }
+            SaveRpm1.Clear();
+            SaveRpm2.Clear();
+            SaveRpmM.Clear();
+            SaveTorq1.Clear();
+            SaveTorq2.Clear();
+            SaveTorqM.Clear();
 
             SaveRpm1 = ktrRpm1;
             SaveRpm2 = ktrRpm2;
@@ -255,12 +261,13 @@ namespace KTR_Measure
             output.Columns.Add("OUTPUT_Torq", typeof(Double));
             output.Columns.Add("MOTOR_RPM", typeof(Double));
             output.Columns.Add("MOTOR_Torq", typeof(Double));
+
             foreach(int row in SaveRpm1)
             {
                 DataRow dr = output.NewRow();
                 dr["INPUT_RPM"] = SaveRpm1[row];
                 dr["INPUT_Torq"] = SaveTorq1[row];
-                dr["OUTPTU_RPM"] = SaveRpm2[row];
+                dr["OUTPUT_RPM"] = SaveRpm2[row];
                 dr["OUTPUT_Torq"] = SaveTorq2[row];
                 dr["MOTOR_RPM"] = SaveRpmM[row];
                 dr["MOTOR_Torq"] = SaveTorqM[row];
@@ -269,7 +276,7 @@ namespace KTR_Measure
 
 
             string data = "";
-            string FilePath = "D:\\testoutput.csv";
+            string FilePath = FileStr + ".csv";
             StreamWriter wr = new StreamWriter(FilePath, false, Encoding.Default);
             foreach (DataColumn column in output.Columns)
             {
@@ -293,11 +300,16 @@ namespace KTR_Measure
 
             wr.Dispose();
             wr.Close();
+            LogOutput("資料儲存至："+FilePath);
+            btnWork.Enabled = true;
+            if (btnFinish.Enabled == false)
+            {
+                btnSaveExcel.Enabled = true;
+            }
 
 
-
-            ThFileSave = new Thread(FileSave);
-            ThFileSave.Start();
+            //ThFileSave = new Thread(FileSave);
+            //ThFileSave.Start();
         }
 
         private void btnreset1_Click(object sender, EventArgs e)
@@ -519,6 +531,8 @@ namespace KTR_Measure
             }
         }
 
+
+
         
 
         private void working_PLC()
@@ -533,13 +547,41 @@ namespace KTR_Measure
                 Send("000000000006" + "010313000004");
                 Listen();
                 MotorListen();
-                chart1.Series[0].Points.AddXY(ktrRpm1.Count, ktrRpm1[ktrRpm1.Count - 1]);
-                chart2.Series[0].Points.AddXY(ktrRpm2.Count, ktrRpm2[ktrRpm2.Count - 1]);
-                chart3.Series[0].Points.AddXY(ktrTorque1.Count, ktrTorque1[ktrTorque1.Count - 1]);
-                chart4.Series[0].Points.AddXY(ktrTorque2.Count, ktrTorque2[ktrTorque2.Count - 1]);
-                chart5.Series[0].Points.AddXY(motorRpm1.Count, motorRpm1[motorRpm1.Count - 1]);
-                chart6.Series[0].Points.AddXY(motorTorque1.Count, motorTorque1[motorTorque1.Count - 1]);
-                chart6.Series[0].Points.AddXY(motorTorque1.Count, ServoMaxTorq);
+                //chart1.Series[0].Points.AddXY(ktrRpm1.Count, ktrRpm1[ktrRpm1.Count - 1]);
+                //chart2.Series[0].Points.AddXY(ktrRpm2.Count, ktrRpm2[ktrRpm2.Count - 1]);
+                //chart3.Series[0].Points.AddXY(ktrTorque1.Count, ktrTorque1[ktrTorque1.Count - 1]);
+                //chart4.Series[0].Points.AddXY(ktrTorque2.Count, ktrTorque2[ktrTorque2.Count - 1]);
+                //chart5.Series[0].Points.AddXY(motorRpm1.Count, motorRpm1[motorRpm1.Count - 1]);
+                //chart6.Series[0].Points.AddXY(motorTorque1.Count, motorTorque1[motorTorque1.Count - 1]);
+                //chart6.Series[1].Points.AddXY(motorTorque1.Count, ServoMaxTorq);
+            }
+        }
+
+        private void Set_Chart()
+        {
+            chart1.DataSource = ktrRpm1;
+            chart2.DataSource = ktrRpm2;
+            chart3.DataSource = ktrTorque1;
+            chart4.DataSource = ktrTorque2;
+            chart5.DataSource = motorRpm1;
+            chart6.DataSource = motorTorque1;
+            chart1.Series[0].YValueMembers = "ktrRpm1";
+            chart2.Series[0].YValueMembers = "ktrRpm2";
+            chart3.Series[0].YValueMembers = "ktrTorque1";
+            chart4.Series[0].YValueMembers = "ktrTorque2";
+            chart5.Series[0].YValueMembers = "motorRpm1";
+            chart6.Series[0].YValueMembers = "motorTorque1";
+        }
+        private void Update_Chart()
+        {
+            while (ServoWorking)
+            {
+                chart1.DataBind();
+                chart2.DataBind();
+                chart3.DataBind();
+                chart4.DataBind();
+                chart5.DataBind();
+                chart6.DataBind();
             }
         }
 
@@ -563,6 +605,14 @@ namespace KTR_Measure
             btnWork.Enabled = true;
             LogOutput("實驗結束");
             ServoON(false);
+
+            chart1.DataBind();
+            chart2.DataBind();
+            chart3.DataBind();
+            chart4.DataBind();
+            chart5.DataBind();
+            chart6.DataBind();
+
         }
 
         private void btnexit_Click(object sender, EventArgs e)
@@ -602,6 +652,7 @@ namespace KTR_Measure
             chart5.Series[0].ChartType = type;
             chart6.Series[0].ChartType = type;
         }
+
 
         private void CleanChart()
         {
@@ -676,7 +727,7 @@ namespace KTR_Measure
                     LogOutput("時間設定錯誤");
                 }
             }
-            if (int.Parse(txtRpm2.ToString()) > ServoMaxSpeed)
+            if (int.Parse(txtRpm2.Text) > ServoMaxSpeed)
             {
                 check_para = false;
             }
@@ -688,27 +739,27 @@ namespace KTR_Measure
                 ServoON(true);
                 SetChartType();
                 CleanChart();
+                Set_Chart();
                 ThWorking_PLC = new Thread(working_PLC);
                 ThWorking_PLC.Start();
+
+                
+
+                double m_Tacc = Double.Parse(txtTacc.Text), m_Tdec = Double.Parse(txtTdec.Text);
+                int m_Rpm = Int16.Parse(txtRpm2.Text) * 10;
+                gnodeid = ushort.Parse(cmbNodeID.Text);
+                /* Set up Velocity mode parameter */
+                rc = CPCI_DMC.CS_DMC_01_set_velocity_mode(gCardNo, node1, 0, m_Tacc, m_Tdec);
+                //* Start Velocity move: rpm > 0 move forward , rpm < 0 move negative */
+                rc = CPCI_DMC.CS_DMC_01_set_velocity(gCardNo, node1, 0, m_Rpm);
+
+                //ThUpdateChart = new Thread(Update_Chart);
+                //ThUpdateChart.Start();
             }
             else
             {
                 LogOutput("設定有誤");
             }
-            
-
-            
-
-            double m_Tacc = Double.Parse(txtTacc.Text), m_Tdec = Double.Parse(txtTdec.Text);
-            int m_Rpm = Int16.Parse(txtRpm2.Text)*10;
-            gnodeid = ushort.Parse(cmbNodeID.Text);
-            /* Set up Velocity mode parameter */
-            rc = CPCI_DMC.CS_DMC_01_set_velocity_mode(gCardNo, node1, 0, m_Tacc, m_Tdec);
-            //* Start Velocity move: rpm > 0 move forward , rpm < 0 move negative */
-            rc = CPCI_DMC.CS_DMC_01_set_velocity(gCardNo, node1, 0, m_Rpm);
-
-
-            
         }
 
         private void Listen()
@@ -726,8 +777,10 @@ namespace KTR_Measure
                 MessageBox.Show("伺服器中斷連線!");
                 btnConnectPLC.Enabled = true;
             }
-            txtReceive.Text = BitConverter.ToString(B, 6, inLen - 6);
-            string[] ary = txtReceive.Text.Split('-');
+            string S = BitConverter.ToString(B, 6, inLen - 6);
+            txtReceive.Text = S;
+            //string[] ary = txtReceive.Text.Split('-');
+            string[] ary = S.Split('-');
             //將讀取到的16進制碼換成10進制碼，且切割後的陣列兩個為1組
             double rpm1, rpm2, torque1, torque2;
             rpm1 = changeVoltage0x16(Int32.Parse(ary[3] + ary[4], System.Globalization.NumberStyles.HexNumber));
@@ -757,8 +810,9 @@ namespace KTR_Measure
             //if (rc == 0)
             //{
             //    //扭矩是千分比
-                txtTorque1.Text = ((double)toe1 / 1000 * ServoMaxTorq).ToString();
-            if(toe1 > 1000)
+            double toe = (double)toe1 / 1000 * ServoMaxTorq;
+            txtTorque1.Text = toe.ToString();
+            if (toe > ServoMaxTorq)
             {
                 txtTorque1.BackColor = Color.Red;
             }
@@ -767,7 +821,7 @@ namespace KTR_Measure
                 txtTorque1.BackColor = Color.White;
             }
             //}
-            motorTorque1.Add((double)toe1 / 1000 * ServoMaxTorq);
+            motorTorque1.Add(toe);
             motorRpm1.Add(spd1 / 10);
         }
         public double changeVoltage0x16(double v)
